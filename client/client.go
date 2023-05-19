@@ -3,12 +3,13 @@ package client
 import (
 	"bufio"
 	"bytes"
-	"ehang.io/nps-mux"
 	"net"
 	"net/http"
 	"strconv"
 	"sync"
 	"time"
+
+	nps_mux "ehang.io/nps-mux"
 
 	"github.com/astaxie/beego/logs"
 	"github.com/xtaci/kcp-go"
@@ -31,10 +32,11 @@ type TRPClient struct {
 	cnf            *config.Config
 	disconnectTime int
 	once           sync.Once
+	localAllowed   string
 }
 
 //new client
-func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl string, cnf *config.Config, disconnectTime int) *TRPClient {
+func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl string, cnf *config.Config, disconnectTime int, localAllowedAddress string) *TRPClient {
 	return &TRPClient{
 		svrAddr:        svraddr,
 		p2pAddr:        make(map[string]string, 0),
@@ -44,6 +46,7 @@ func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl st
 		cnf:            cnf,
 		disconnectTime: disconnectTime,
 		once:           sync.Once{},
+		localAllowed:   localAllowedAddress,
 	}
 }
 
@@ -175,6 +178,11 @@ func (s *TRPClient) handleChan(src net.Conn) {
 	if err != nil || lk == nil {
 		src.Close()
 		logs.Error("get connection info from server error ", err)
+		return
+	}
+	if lk.Host != s.localAllowed {
+		src.Close()
+		logs.Warn("The local address %s is not allowed to connect. Only %s is allowed to connect", lk.Host, s.localAllowed)
 		return
 	}
 	//host for target processing

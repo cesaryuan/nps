@@ -1,23 +1,24 @@
 package main
 
 import (
-	"ehang.io/nps/client"
-	"ehang.io/nps/lib/common"
-	"ehang.io/nps/lib/daemon"
-	"ehang.io/nps/lib/version"
 	"fmt"
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/widget"
-	"github.com/astaxie/beego/logs"
 	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
 	"strings"
 	"time"
+
+	"ehang.io/nps/client"
+	"ehang.io/nps/lib/common"
+	"ehang.io/nps/lib/daemon"
+	"ehang.io/nps/lib/version"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/widget"
+	"github.com/astaxie/beego/logs"
 )
 
 func main() {
@@ -111,7 +112,7 @@ func onclick(s, v, c string) {
 		}
 		go func() {
 			for {
-				cl = client.NewRPClient(s, v, c, "", nil, 60)
+				cl = client.NewRPClient(s, v, c, "", nil, 60, "")
 				status = "Stop!"
 				refreshCh <- struct{}{}
 				cl.Start()
