@@ -182,7 +182,7 @@ func (s *TRPClient) handleChan(src net.Conn) {
 	}
 	if lk.Host != s.localAllowed {
 		src.Close()
-		logs.Warn("The local address %s is not allowed to connect. Only %s is allowed to connect", lk.Host, s.localAllowed)
+		logs.Error("The local address %s is not allowed to connect. Only %s is allowed to connect", lk.Host, s.localAllowed)
 		return
 	}
 	//host for target processing
