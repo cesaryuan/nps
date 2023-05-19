@@ -136,8 +136,13 @@ re:
 	}
 	ioutil.WriteFile(filepath.Join(common.GetTmpPath(), "npc_vkey.txt"), []byte(vkey), 0600)
 
+	localAllowedTargets := make(map[string]struct{})
 	//send hosts to server
 	for _, v := range cnf.Hosts {
+		arr := strings.Split(v.Target.TargetStr, "\n")
+		for _, vv := range arr {
+			localAllowedTargets[strings.TrimSpace(vv)] = struct{}{}
+		}
 		if _, err := c.SendInfo(v, common.NEW_HOST); err != nil {
 			logs.Error(err)
 			goto re
@@ -150,6 +155,10 @@ re:
 
 	//send  task to server
 	for _, v := range cnf.Tasks {
+		arr := strings.Split(v.Target.TargetStr, "\n")
+		for _, vv := range arr {
+			localAllowedTargets[strings.TrimSpace(vv)] = struct{}{}
+		}
 		if _, err := c.SendInfo(v, common.NEW_TASK); err != nil {
 			logs.Error(err)
 			goto re
@@ -175,7 +184,7 @@ re:
 	} else {
 		logs.Notice("web access login username:%s password:%s", cnf.CommonConfig.Client.WebUserName, cnf.CommonConfig.Client.WebPassword)
 	}
-	NewRPClient(cnf.CommonConfig.Server, vkey, cnf.CommonConfig.Tp, cnf.CommonConfig.ProxyUrl, cnf, cnf.CommonConfig.DisconnectTime, "").Start()
+	NewRPClient(cnf.CommonConfig.Server, vkey, cnf.CommonConfig.Tp, cnf.CommonConfig.ProxyUrl, cnf, cnf.CommonConfig.DisconnectTime, localAllowedTargets).Start()
 	CloseLocalServer()
 	goto re
 }
@@ -251,7 +260,7 @@ func NewConn(tp string, vkey string, server string, connType string, proxyUrl st
 	return c, nil
 }
 
-//http proxy connection
+// http proxy connection
 func NewHttpProxyConn(url *url.URL, remoteAddr string) (net.Conn, error) {
 	req, err := http.NewRequest("CONNECT", "http://"+remoteAddr, nil)
 	if err != nil {
@@ -278,7 +287,7 @@ func NewHttpProxyConn(url *url.URL, remoteAddr string) (net.Conn, error) {
 	return proxyConn, nil
 }
 
-//get a basic auth string
+// get a basic auth string
 func basicAuth(username, password string) string {
 	auth := username + ":" + password
 	return base64.StdEncoding.EncodeToString([]byte(auth))

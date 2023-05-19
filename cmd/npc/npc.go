@@ -40,7 +40,7 @@ var (
 	stunAddr       = flag.String("stun_addr", "stun.stunprotocol.org:3478", "stun server address (eg:stun.stunprotocol.org:3478)")
 	ver            = flag.Bool("version", false, "show current version")
 	disconnectTime = flag.Int("disconnect_timeout", 60, "not receiving check packet times, until timeout will disconnect the client")
-	allowedLocal   = flag.String("allowed_local", "", "local allowed address")
+	allowedTargets = flag.String("allowed_targets", "", "local allowed targets, split by ','")
 )
 
 func main() {
@@ -232,9 +232,16 @@ func run() {
 	}
 	logs.Info("the version of client is %s, the core version of client is %s", version.VERSION, version.GetVersion())
 	if *verifyKey != "" && *serverAddr != "" && *configPath == "" {
+		localAllowedTargets := make(map[string]struct{})
+		if *allowedTargets != "" {
+			for _, v := range strings.Split(*allowedTargets, ",") {
+				localAllowedTargets[strings.TrimSpace(v)] = struct{}{}
+			}
+		}
+
 		go func() {
 			for {
-				client.NewRPClient(*serverAddr, *verifyKey, *connType, *proxyUrl, nil, *disconnectTime, *allowedLocal).Start()
+				client.NewRPClient(*serverAddr, *verifyKey, *connType, *proxyUrl, nil, *disconnectTime, localAllowedTargets).Start()
 				logs.Info("Client closed! It will be reconnected in five seconds")
 				time.Sleep(time.Second * 5)
 			}

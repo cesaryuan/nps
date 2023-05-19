@@ -112,7 +112,7 @@ func onclick(s, v, c string) {
 		}
 		go func() {
 			for {
-				cl = client.NewRPClient(s, v, c, "", nil, 60, "")
+				cl = client.NewRPClient(s, v, c, "", nil, 60, nil)
 				status = "Stop!"
 				refreshCh <- struct{}{}
 				cl.Start()

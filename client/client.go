@@ -32,11 +32,11 @@ type TRPClient struct {
 	cnf            *config.Config
 	disconnectTime int
 	once           sync.Once
-	localAllowed   string
+	localAllowed   map[string]struct{}
 }
 
-//new client
-func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl string, cnf *config.Config, disconnectTime int, localAllowedAddress string) *TRPClient {
+// new client
+func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl string, cnf *config.Config, disconnectTime int, localAllowedTargets map[string]struct{}) *TRPClient {
 	return &TRPClient{
 		svrAddr:        svraddr,
 		p2pAddr:        make(map[string]string, 0),
@@ -46,14 +46,14 @@ func NewRPClient(svraddr string, vKey string, bridgeConnType string, proxyUrl st
 		cnf:            cnf,
 		disconnectTime: disconnectTime,
 		once:           sync.Once{},
-		localAllowed:   localAllowedAddress,
+		localAllowed:   localAllowedTargets,
 	}
 }
 
 var NowStatus int
 var CloseClient bool
 
-//start
+// start
 func (s *TRPClient) Start() {
 	CloseClient = false
 retry:
@@ -87,7 +87,7 @@ retry:
 	s.handleMain()
 }
 
-//handle main connection
+// handle main connection
 func (s *TRPClient) handleMain() {
 	for {
 		flags, err := s.signal.ReadFlag()
@@ -154,7 +154,7 @@ func (s *TRPClient) newUdpConn(localAddr, rAddr string, md5Password string) {
 	}
 }
 
-//pmux tunnel
+// pmux tunnel
 func (s *TRPClient) newChan() {
 	tunnel, err := NewConn(s.bridgeConnType, s.vKey, s.svrAddr, common.WORK_CHAN, s.proxyUrl)
 	if err != nil {
@@ -180,7 +180,7 @@ func (s *TRPClient) handleChan(src net.Conn) {
 		logs.Error("get connection info from server error ", err)
 		return
 	}
-	if lk.Host != s.localAllowed {
+	if _, ok := s.localAllowed[lk.Host]; !ok {
 		src.Close()
 		logs.Error("The local address %s is not allowed to connect. Only %s is allowed to connect", lk.Host, s.localAllowed)
 		return
