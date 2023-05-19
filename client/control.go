@@ -141,6 +141,7 @@ re:
 	for _, v := range cnf.Hosts {
 		arr := strings.Split(v.Target.TargetStr, "\n")
 		for _, vv := range arr {
+			logs.Debug("add allowed target %s", vv)
 			localAllowedTargets[strings.TrimSpace(vv)] = struct{}{}
 		}
 		if _, err := c.SendInfo(v, common.NEW_HOST); err != nil {
@@ -157,6 +158,7 @@ re:
 	for _, v := range cnf.Tasks {
 		arr := strings.Split(v.Target.TargetStr, "\n")
 		for _, vv := range arr {
+			logs.Debug("add allowed target %s", vv)
 			localAllowedTargets[strings.TrimSpace(vv)] = struct{}{}
 		}
 		if _, err := c.SendInfo(v, common.NEW_TASK); err != nil {
