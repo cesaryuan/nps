@@ -6,3 +6,4 @@
 .vscode/launch.json
 cmd/npc/npc_temp_config.conf
 cmd/npc/npc_vkey.txt
+npc.exe~

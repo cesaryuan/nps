@@ -255,7 +255,11 @@ func run() {
 		}()
 	} else if *verifyKey != "" && *serverAddr != "" && (*tcpTunnel != "" || *udpTunnel != "") {
 		if *autoAddClient != "" {
-			addClient(common.GetIpByAddr(*serverAddr)+":"+*autoAddClient, *verifyKey)
+			if err := addClient(common.GetIpByAddr(*serverAddr)+":"+*autoAddClient, *verifyKey); err != nil {
+				logs.Error("add client error: %s", err.Error())
+			} else {
+				logs.Info("add client success")
+			}
 		}
 		var tempConfigPath string = common.GetTmpPath() + "/npc_temp_config.conf"
 		var tcpTunnelMap map[string]string = make(map[string]string)
@@ -286,7 +290,7 @@ func run() {
 	}
 }
 
-func addClient(webUIAddr string, vkey string) {
+func addClient(webUIAddr string, vkey string) error {
 	url := fmt.Sprintf("http://%s/client/add", webUIAddr)
 	method := "POST"
 	timestamp := time.Now().Unix()
@@ -297,22 +301,20 @@ func addClient(webUIAddr string, vkey string) {
 	req, err := http.NewRequest(method, url, payload)
 
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
 
 	res, err := client.Do(req)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 	defer res.Body.Close()
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 	fmt.Println(string(body))
+	return nil
 }
