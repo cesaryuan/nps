@@ -99,7 +99,7 @@ func NewConfig(path string) (c *Config, err error) {
 	return
 }
 
-func GenerateConfig(serverAddr string, verifyKey string, connType string, tcpTunnel map[string]string, outFilePath string) error {
+func GenerateConfig(serverAddr string, verifyKey string, connType string, tcpTunnel map[string]string, udpTunnel map[string]string, outFilePath string) error {
 	if serverAddr == "" || verifyKey == "" {
 		return errors.New("serverAddr and verifyKey can not be empty")
 	}
@@ -116,8 +116,16 @@ conn_type=%s
 vkey=%s`, serverAddr, connType, verifyKey)
 	for k, v := range tcpTunnel {
 		content += fmt.Sprintf(`
+
 [tcp_%s]
 mode=tcp
+server_port=%s
+target_addr=%s`, k, k, v)
+	}
+	for k, v := range udpTunnel {
+		content += fmt.Sprintf(`
+[udp_%s]
+mode=udp
 server_port=%s
 target_addr=%s`, k, k, v)
 	}

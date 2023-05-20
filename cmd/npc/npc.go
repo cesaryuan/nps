@@ -41,7 +41,8 @@ var (
 	ver            = flag.Bool("version", false, "show current version")
 	disconnectTime = flag.Int("disconnect_timeout", 60, "not receiving check packet times, until timeout will disconnect the client")
 	allowedTargets = flag.String("allowed_targets", "", "local allowed targets, split by ','")
-	tcpTunnel      = flag.String("tcp_tunnel", "", " 8000->127.0.0.1:80|8001->127.0.0.1:81")
+	tcpTunnel      = flag.String("tcp_tunnel", "", "8000->127.0.0.1:80|8001->127.0.0.1:81")
+	udpTunnel      = flag.String("udp_tunnel", "", "8000->127.0.0.1:80|8001->127.0.0.1:81")
 )
 
 func main() {
@@ -232,7 +233,7 @@ func run() {
 		*verifyKey, _ = env["NPC_SERVER_VKEY"]
 	}
 	logs.Info("the version of client is %s, the core version of client is %s", version.VERSION, version.GetVersion())
-	if *verifyKey != "" && *serverAddr != "" && (*configPath == "" && *tcpTunnel == "") {
+	if *verifyKey != "" && *serverAddr != "" && (*configPath == "" && *tcpTunnel == "" && *udpTunnel == "") {
 		localAllowedTargets := make(map[string]struct{})
 		if *allowedTargets != "" {
 			for _, v := range strings.Split(*allowedTargets, ",") {
@@ -247,13 +248,17 @@ func run() {
 				time.Sleep(time.Second * 5)
 			}
 		}()
-	} else if *verifyKey != "" && *serverAddr != "" && *tcpTunnel != "" {
+	} else if *verifyKey != "" && *serverAddr != "" && (*tcpTunnel != "" || *udpTunnel != "") {
 		var tempConfigPath string = common.GetTmpPath() + "/npc_temp_config.conf"
 		var tcpTunnelMap map[string]string = make(map[string]string)
+		var udpTunnelMap map[string]string = make(map[string]string)
 		for _, v := range strings.Split(*tcpTunnel, "|") {
 			tcpTunnelMap[strings.TrimSpace(strings.Split(v, "->")[0])] = strings.TrimSpace(strings.Split(v, "->")[1])
 		}
-		if err := config.GenerateConfig(*serverAddr, *verifyKey, *connType, tcpTunnelMap, tempConfigPath); err != nil {
+		for _, v := range strings.Split(*udpTunnel, "|") {
+			udpTunnelMap[strings.TrimSpace(strings.Split(v, "->")[0])] = strings.TrimSpace(strings.Split(v, "->")[1])
+		}
+		if err := config.GenerateConfig(*serverAddr, *verifyKey, *connType, tcpTunnelMap, udpTunnelMap, tempConfigPath); err != nil {
 			logs.Error("generate config error", err)
 			return
 		}
