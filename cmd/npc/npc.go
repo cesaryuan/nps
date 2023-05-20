@@ -252,10 +252,13 @@ func run() {
 		var tempConfigPath string = common.GetTmpPath() + "/npc_temp_config.conf"
 		var tcpTunnelMap map[string]string = make(map[string]string)
 		var udpTunnelMap map[string]string = make(map[string]string)
-		for _, v := range strings.Split(*tcpTunnel, "|") {
+		var split = func(r rune) bool {
+			return r == ',' || r == '，'
+		}
+		for _, v := range strings.FieldsFunc(*tcpTunnel, split) {
 			tcpTunnelMap[strings.TrimSpace(strings.Split(v, "->")[0])] = strings.TrimSpace(strings.Split(v, "->")[1])
 		}
-		for _, v := range strings.Split(*udpTunnel, "|") {
+		for _, v := range strings.FieldsFunc(*udpTunnel, split) {
 			udpTunnelMap[strings.TrimSpace(strings.Split(v, "->")[0])] = strings.TrimSpace(strings.Split(v, "->")[1])
 		}
 		if err := config.GenerateConfig(*serverAddr, *verifyKey, *connType, tcpTunnelMap, udpTunnelMap, tempConfigPath); err != nil {
@@ -264,6 +267,10 @@ func run() {
 		}
 		go client.StartFromFile(tempConfigPath)
 	} else {
+		if *tcpTunnel != "" || *udpTunnel != "" {
+			logs.Error("you are using config file mode, -tcpTunnel and -udpTunnel are not allowed")
+			return
+		}
 		if *configPath == "" {
 			*configPath = common.GetConfigPath()
 		}
