@@ -41,8 +41,8 @@ var (
 	ver            = flag.Bool("version", false, "show current version")
 	disconnectTime = flag.Int("disconnect_timeout", 60, "not receiving check packet times, until timeout will disconnect the client")
 	allowedTargets = flag.String("allowed_targets", "", "local allowed targets, split by ','")
-	tcpTunnel      = flag.String("tcp_tunnel", "", "8000->127.0.0.1:80|8001->127.0.0.1:81")
-	udpTunnel      = flag.String("udp_tunnel", "", "8000->127.0.0.1:80|8001->127.0.0.1:81")
+	tcpTunnel      = flag.String("tcp_tunnel", "", "format: server_port->target1:port1|server_port->target2:port2, eg: 8000->127.0.0.1:80")
+	udpTunnel      = flag.String("udp_tunnel", "", "format: server_port->target1:port1|server_port->target2:port2, eg: 8000->127.0.0.1:80")
 )
 
 func main() {
