@@ -3,9 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +16,7 @@ import (
 	"ehang.io/nps/client"
 	"ehang.io/nps/lib/common"
 	"ehang.io/nps/lib/config"
+	"ehang.io/nps/lib/crypt"
 	"ehang.io/nps/lib/file"
 	"ehang.io/nps/lib/install"
 	"ehang.io/nps/lib/version"
@@ -41,6 +45,7 @@ var (
 	ver            = flag.Bool("version", false, "show current version")
 	disconnectTime = flag.Int("disconnect_timeout", 60, "not receiving check packet times, until timeout will disconnect the client")
 	allowedTargets = flag.String("allowed_targets", "", "local allowed targets, split by ','")
+	autoAddClient  = flag.String("auto_add_client", "", "web ui port")
 	tcpTunnel      = flag.String("tcp_tunnel", "", "format: server_port->target1:port1|server_port->target2:port2, eg: 8000->127.0.0.1:80")
 	udpTunnel      = flag.String("udp_tunnel", "", "format: server_port->target1:port1|server_port->target2:port2, eg: 8000->127.0.0.1:80")
 )
@@ -249,6 +254,9 @@ func run() {
 			}
 		}()
 	} else if *verifyKey != "" && *serverAddr != "" && (*tcpTunnel != "" || *udpTunnel != "") {
+		if *autoAddClient != "" {
+			addClient(common.GetIpByAddr(*serverAddr)+":"+*autoAddClient, *verifyKey)
+		}
 		var tempConfigPath string = common.GetTmpPath() + "/npc_temp_config.conf"
 		var tcpTunnelMap map[string]string = make(map[string]string)
 		var udpTunnelMap map[string]string = make(map[string]string)
@@ -276,4 +284,35 @@ func run() {
 		}
 		go client.StartFromFile(*configPath)
 	}
+}
+
+func addClient(webUIAddr string, vkey string) {
+	url := fmt.Sprintf("http://%s/client/add", webUIAddr)
+	method := "POST"
+	timestamp := time.Now().Unix()
+	auth_key := crypt.Md5(strconv.FormatInt(timestamp, 10))
+	payload := strings.NewReader(fmt.Sprintf("remark=unknown&u=&p=&vkey=%s&config_conn_allow=1&compress=1&crypt=0&auth_key=%s&timestamp=%d", vkey, auth_key, timestamp))
+
+	client := &http.Client{}
+	req, err := http.NewRequest(method, url, payload)
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(string(body))
 }
