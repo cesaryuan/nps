@@ -99,6 +99,32 @@ func NewConfig(path string) (c *Config, err error) {
 	return
 }
 
+func GenerateConfig(serverAddr string, verifyKey string, connType string, tcpTunnel map[string]string, outFilePath string) error {
+	if serverAddr == "" || verifyKey == "" {
+		return errors.New("serverAddr and verifyKey can not be empty")
+	}
+	if connType == "" {
+		connType = "tcp"
+	} else if connType != "tcp" && connType != "kcp" {
+		return errors.New("connType must be tcp or kcp")
+	}
+	var content string
+	content += fmt.Sprintf(`
+[common]
+server_addr=%s
+conn_type=%s
+vkey=%s`, serverAddr, connType, verifyKey)
+	for k, v := range tcpTunnel {
+		content += fmt.Sprintf(`
+[tcp_%s]
+mode=tcp
+server_port=%s
+target_addr=%s`, k, k, v)
+	}
+	common.WriteToFile(outFilePath, content)
+	return nil
+}
+
 func getTitleContent(s string) string {
 	re, _ := regexp.Compile(`[\[\]]`)
 	return re.ReplaceAllString(s, "")
