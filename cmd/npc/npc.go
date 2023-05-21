@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -45,7 +47,8 @@ var (
 	ver            = flag.Bool("version", false, "show current version")
 	disconnectTime = flag.Int("disconnect_timeout", 60, "not receiving check packet times, until timeout will disconnect the client")
 	allowedTargets = flag.String("allowed_targets", "", "local allowed targets, split by ','")
-	autoAddClient  = flag.String("auto_add_client", "", "web ui port")
+	autoAddClient  = flag.Bool("auto_add_client", true, "auto add vkey to server, if vkey is empty, will generate a random vkey")
+	apiAddr        = flag.String("api", "", "web ui port, should be provided with -auto_add_client")
 	tcpTunnel      = flag.String("tcp_tunnel", "", "format: server_port->target1:port1|server_port->target2:port2, eg: 8000->127.0.0.1:80")
 	udpTunnel      = flag.String("udp_tunnel", "", "format: server_port->target1:port1|server_port->target2:port2, eg: 8000->127.0.0.1:80")
 )
@@ -253,10 +256,35 @@ func run() {
 				time.Sleep(time.Second * 5)
 			}
 		}()
-	} else if *verifyKey != "" && *serverAddr != "" && (*tcpTunnel != "" || *udpTunnel != "") {
-		if *autoAddClient != "" {
-			if err := addClient(common.GetIpByAddr(*serverAddr)+":"+*autoAddClient, *verifyKey); err != nil {
+	} else if *apiAddr != "" && (*tcpTunnel != "" || *udpTunnel != "") {
+		logs.Info("start with cmd mode")
+		// get bridge port, convert to serverAddr
+		if bridgePort, err := getBridgePort(*apiAddr); err != nil {
+			logs.Error("get bridge port error: %s", err.Error())
+			return
+		} else {
+			var serverIP = common.GetIpByAddr(*apiAddr)
+			*serverAddr = fmt.Sprintf("%s:%d", serverIP, bridgePort)
+			logs.Info("get bridge port success: %d", bridgePort)
+		}
+		if *verifyKey == "" && !*autoAddClient {
+			logs.Error("please input verifyKey")
+			return
+		}
+		if *autoAddClient {
+			if *verifyKey == "" {
+				if hostname, err := os.Hostname(); err != nil {
+					logs.Error("get hostname error: %s", err.Error())
+					panic(err)
+				} else {
+					*verifyKey = crypt.Md5(hostname + *tcpTunnel + *udpTunnel)
+				}
+			}
+			if err := addClient(*apiAddr, *verifyKey); err != nil {
 				logs.Error("add client error: %s", err.Error())
+				if !strings.Contains(err.Error(), "Vkey duplicate, please reset") {
+					panic(err)
+				}
 			} else {
 				logs.Info("add client success")
 			}
@@ -292,29 +320,62 @@ func run() {
 
 func addClient(webUIAddr string, vkey string) error {
 	url := fmt.Sprintf("http://%s/client/add", webUIAddr)
+	payload := fmt.Sprintf("remark=undefined&u=&p=&vkey=%s&config_conn_allow=1&compress=1&crypt=0", vkey)
+	body, err := postUrlEncoded(url, payload)
+
+	if err != nil {
+		return err
+	}
+	jsonBody := make(map[string]interface{})
+	if err := json.Unmarshal([]byte(body), &jsonBody); err != nil {
+		return err
+	} else {
+		if jsonBody["status"].(float64) == 0 {
+			return errors.New(jsonBody["msg"].(string))
+		}
+	}
+	return nil
+}
+
+func getBridgePort(webUIAddr string) (int, error) {
+	url := fmt.Sprintf("http://%s/client/list", webUIAddr)
+	payload := "search=&order=asc&offset=0&limit=10"
+	body, err := postUrlEncoded(url, payload)
+	if err != nil {
+		return 0, err
+	}
+	jsonBody := make(map[string]interface{})
+	if err := json.Unmarshal([]byte(body), &jsonBody); err != nil {
+		return 0, err
+	} else {
+		return int(jsonBody["bridgePort"].(float64)), nil
+	}
+}
+
+func postUrlEncoded(path string, data string) (string, error) {
+	url := path
 	method := "POST"
 	timestamp := time.Now().Unix()
 	auth_key := crypt.Md5(strconv.FormatInt(timestamp, 10))
-	payload := strings.NewReader(fmt.Sprintf("remark=unknown&u=&p=&vkey=%s&config_conn_allow=1&compress=1&crypt=0&auth_key=%s&timestamp=%d", vkey, auth_key, timestamp))
+	payload := strings.NewReader(data + fmt.Sprintf("&auth_key=%s&timestamp=%d", auth_key, timestamp))
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
 
 	if err != nil {
-		return err
+		return "", err
 	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
 
 	res, err := client.Do(req)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer res.Body.Close()
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return err
+		return "", err
 	}
-	fmt.Println(string(body))
-	return nil
+	return string(body), nil
 }
