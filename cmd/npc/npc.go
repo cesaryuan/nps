@@ -369,7 +369,6 @@ func getClientIdByVkey(webUIAddr string, vkey string) (int, error) {
 		}
 	}
 	return 0, errors.New("no client found")
-
 }
 
 func deleteClient(webUIAddr string, clientId int) error {
