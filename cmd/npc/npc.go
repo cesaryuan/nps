@@ -332,7 +332,7 @@ func run() {
 
 func addClient(webUIAddr string, vkey string) error {
 	url := fmt.Sprintf("http://%s/client/add", webUIAddr)
-	payload := fmt.Sprintf("remark=undefined&u=&p=&vkey=%s&config_conn_allow=1&compress=1&crypt=0", vkey)
+	payload := fmt.Sprintf("remark=undefined&u=&p=&vkey=%s&config_conn_allow=1&compress=0&crypt=0", vkey)
 	body, err := postUrlEncoded(url, payload)
 
 	if err != nil {
