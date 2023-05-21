@@ -141,10 +141,10 @@ re:
 	localAllowedTargets := make(map[string]struct{})
 	//send hosts to server
 	for _, v := range cnf.Hosts {
-		logs.Info("add host <%s>: %s -> %s/%s", v.Remark, v.Host, v.Target.TargetStr, v.Location)
+		logs.Notice("add host <%s>: %s -> %s/%s", v.Remark, v.Host, v.Target.TargetStr, v.Location)
 		arr := strings.Split(v.Target.TargetStr, "\n")
 		for _, vv := range arr {
-			logs.Debug("add allowed target: %s -> %s", v.Host, vv)
+			logs.Notice("add allowed target: %s -> %s", v.Host, vv)
 			localAllowedTargets[strings.TrimSpace(vv)] = struct{}{}
 		}
 		if _, err := c.SendInfo(v, common.NEW_HOST); err != nil {
@@ -160,7 +160,7 @@ re:
 	//send  task to server
 	for _, v := range cnf.Tasks {
 		arr := strings.Split(v.Target.TargetStr, "\n")
-		logs.Info("add %s tunnel <%s>: %s:%s -> %s", v.Mode, v.Remark, hostWithoutPort, v.Ports, v.Target.TargetStr)
+		logs.Notice("add %s tunnel <%s>: %s:%s -> %s", v.Mode, v.Remark, hostWithoutPort, v.Ports, v.Target.TargetStr)
 		for _, vv := range arr {
 			localAllowedTargets[strings.TrimSpace(vv)] = struct{}{}
 		}

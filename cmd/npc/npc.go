@@ -281,10 +281,10 @@ func run() {
 				}
 			}
 			if err := addClient(*apiAddr, *verifyKey); err != nil {
-				logs.Error("add client error: %s", err.Error())
 				if !strings.Contains(err.Error(), "Vkey duplicate, please reset") {
 					panic(err)
 				}
+				logs.Warn("add client failed: %s", err.Error())
 			} else {
 				logs.Info("add client success")
 			}
