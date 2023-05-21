@@ -48,6 +48,7 @@ var (
 	disconnectTime = flag.Int("disconnect_timeout", 60, "not receiving check packet times, until timeout will disconnect the client")
 	allowedTargets = flag.String("allowed_targets", "", "local allowed targets, split by ','")
 	autoAddClient  = flag.Bool("auto_add_client", true, "auto add vkey to server, if vkey is empty, will generate a random vkey")
+	delClient      = flag.Bool("del_client", true, "delete client after exit")
 	apiAddr        = flag.String("api", "", "web ui port, should be provided with -auto_add_client")
 	tcpTunnel      = flag.String("tcp_tunnel", "", "format: server_port->target1:port1|server_port->target2:port2, eg: 8000->127.0.0.1:80")
 	udpTunnel      = flag.String("udp_tunnel", "", "format: server_port->target1:port1|server_port->target2:port2, eg: 8000->127.0.0.1:80")
@@ -192,6 +193,16 @@ func (p *npc) Start(s service.Service) error {
 }
 func (p *npc) Stop(s service.Service) error {
 	close(p.exit)
+	if *apiAddr != "" && *delClient {
+		id, err := getClientIdByVkey(*apiAddr, *verifyKey)
+		if err != nil {
+			logs.Error("get client id error", err)
+		}
+		if err := deleteClient(*apiAddr, id); err != nil {
+			logs.Error("delete client error", err)
+		}
+		logs.Info("delete client <%s> success", *verifyKey)
+	}
 	if service.Interactive() {
 		os.Exit(0)
 	}
@@ -278,6 +289,7 @@ func run() {
 					panic(err)
 				} else {
 					*verifyKey = crypt.Md5(hostname + *tcpTunnel + *udpTunnel)
+					logs.Info("auto generate verifyKey: %s", *verifyKey)
 				}
 			}
 			if err := addClient(*apiAddr, *verifyKey); err != nil {
@@ -286,7 +298,7 @@ func run() {
 				}
 				logs.Warn("add client failed: %s", err.Error())
 			} else {
-				logs.Info("add client success")
+				logs.Info("add client success", *verifyKey)
 			}
 		}
 		var tempConfigPath string = common.GetTmpPath() + "/npc_temp_config.conf"
@@ -329,10 +341,50 @@ func addClient(webUIAddr string, vkey string) error {
 	jsonBody := make(map[string]interface{})
 	if err := json.Unmarshal([]byte(body), &jsonBody); err != nil {
 		return err
-	} else {
-		if jsonBody["status"].(float64) == 0 {
-			return errors.New(jsonBody["msg"].(string))
+	}
+	if jsonBody["status"].(float64) != 1 {
+		return errors.New(jsonBody["msg"].(string))
+	}
+	return nil
+}
+
+func getClientIdByVkey(webUIAddr string, vkey string) (int, error) {
+	url := fmt.Sprintf("http://%s/client/list", webUIAddr)
+	payload := fmt.Sprintf("search=%s&order=asc&offset=0&limit=10", vkey)
+	body, err := postUrlEncoded(url, payload)
+	if err != nil {
+		return 0, err
+	}
+	jsonBody := make(map[string]interface{})
+	if err := json.Unmarshal([]byte(body), &jsonBody); err != nil {
+		return 0, err
+	}
+	rows := jsonBody["rows"].([]interface{})
+	if len(rows) == 0 {
+		return 0, errors.New("no client found")
+	}
+	for _, v := range rows {
+		if v.(map[string]interface{})["VerifyKey"].(string) == vkey {
+			return int(v.(map[string]interface{})["Id"].(float64)), nil
 		}
+	}
+	return 0, errors.New("no client found")
+
+}
+
+func deleteClient(webUIAddr string, clientId int) error {
+	url := fmt.Sprintf("http://%s/client/del", webUIAddr)
+	payload := fmt.Sprintf("id=%d", clientId)
+	body, err := postUrlEncoded(url, payload)
+	if err != nil {
+		return err
+	}
+	jsonBody := make(map[string]interface{})
+	if err := json.Unmarshal([]byte(body), &jsonBody); err != nil {
+		return err
+	}
+	if jsonBody["status"].(float64) != 1 {
+		return errors.New(jsonBody["msg"].(string))
 	}
 	return nil
 }
@@ -347,9 +399,8 @@ func getBridgePort(webUIAddr string) (int, error) {
 	jsonBody := make(map[string]interface{})
 	if err := json.Unmarshal([]byte(body), &jsonBody); err != nil {
 		return 0, err
-	} else {
-		return int(jsonBody["bridgePort"].(float64)), nil
 	}
+	return int(jsonBody["bridgePort"].(float64)), nil
 }
 
 func postUrlEncoded(path string, data string) (string, error) {
